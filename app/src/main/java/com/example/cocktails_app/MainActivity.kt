@@ -13,7 +13,10 @@ import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.example.cocktails_app.ui.screens.CocktailScreens
@@ -28,11 +31,20 @@ import com.google.accompanist.navigation.animation.rememberAnimatedNavController
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val isDarkTheme = resources.configuration.uiMode and
+                android.content.res.Configuration.UI_MODE_NIGHT_MASK == android.content.res.Configuration.UI_MODE_NIGHT_YES
+
         setContent {
-            Cocktails_appTheme {
+            Cocktails_appTheme(
+                darkTheme = isDarkTheme
+            ) {
+
+                WindowCompat.setDecorFitsSystemWindows(window, false)
+
+                window.statusBarColor = Color.Transparent.toArgb()
 
                 CocktailApp()
-
             }
         }
     }
@@ -68,13 +80,13 @@ private fun NavHostScreen(
                 navController = navController
             )
         }
-//        composable(CocktailScreens.DetailScreen.route) {
-//            DetailCocktailView(
-//                viewModel = viewModel,
-//                navController = navController
-//            )
-//
-//        }
+        composable(CocktailScreens.DetailScreen.route) {
+            DetailCocktailView(
+                viewModel = viewModel,
+                navController = navController
+            )
+
+        }
     }
 }
 

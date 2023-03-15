@@ -42,5 +42,9 @@ class CocktailViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun setSelectedCocktail(cocktail: Drink) {
+        selectedCocktail = cocktail
+    }
+
 
 }

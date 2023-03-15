@@ -1,35 +1,28 @@
 package com.example.cocktails_app.ui.screens
 
-import android.util.Log
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.R
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.shape.ZeroCornerSize
 import androidx.compose.foundation.text.selection.LocalTextSelectionColors
 import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -62,7 +55,7 @@ fun SearchCocktailView(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF242424))
+            .background(Color(0xFFF78299))
     ) {
         SearchView(
             viewModel = viewModel
@@ -116,7 +109,10 @@ fun CocktailList(
         is Resource.Loading -> {
             CircularProgressIndicator(
                 modifier = Modifier
-                    .size(48.dp)
+                    .fillMaxSize()
+                    .wrapContentSize(Alignment.Center)
+                    .size(48.dp),
+                color = MaterialTheme.colorScheme.onSecondary
             )
         }
         else -> {
@@ -144,14 +140,22 @@ fun CocktailTile(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(1f)
-            .padding(8.dp),
+            .padding(8.dp)
+            .shadow(
+                10.dp,
+                shape = RoundedCornerShape(8.dp),
+                clip = true,
+                ambientColor = Color.Red,
+                spotColor = Color.Red
+            ),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.secondary,
             contentColor = MaterialTheme.colorScheme.onSecondary,
         ),
         onClick = {
             viewModel.searchCocktailById(drink.id)
-            navController.navigate("detail_cocktail")
+            viewModel.setSelectedCocktail(drink)
+            navController.navigate(CocktailScreens.DetailScreen.route)
         }
     ) {
         Box(
@@ -161,9 +165,6 @@ fun CocktailTile(
             CoilImage(
                 data = drink.thumbnail,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(RectangleShape),
             )
             Text(
                 text = drink.name,
@@ -176,7 +177,8 @@ fun CocktailTile(
                     .background(
                         color = Color.Black.copy(alpha = 0.5f),
                         shape = RoundedCornerShape(8.dp)
-                    ).padding(8.dp)
+                    )
+                    .padding(8.dp)
             )
         }
     }
@@ -229,7 +231,7 @@ fun SearchView(
                     IconButton(
                         onClick = {
                             searchQueryState.value =
-                                TextFieldValue("") // Remove text from TextField when you press the 'X' icon
+                                TextFieldValue("")
                         }
                     ) {
                         Icon(
@@ -249,7 +251,7 @@ fun SearchView(
                 )
             },
             singleLine = true,
-            shape = RectangleShape, // The TextFiled has rounded corners top left and right by default
+            shape = RectangleShape,
             colors = TextFieldDefaults.textFieldColors(
                 textColor = Color.White,
                 cursorColor = Color.White,
@@ -258,7 +260,6 @@ fun SearchView(
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
                 disabledIndicatorColor = Color.Transparent,
-                //copy symbol color
                 errorIndicatorColor = Color.Transparent,
             )
         )
@@ -276,13 +277,9 @@ fun SearchView(
 @Composable
 fun CoilImage(
     data: Any?,
-    modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Crop,
-    circularRevealedEnabled: Boolean = false,
-    circularRevealedDuration: Int = 1000,
-    circularRevealedColor: Color = Color.LightGray,
-    error: @Composable ((Throwable) -> Unit)? = null
 ) {
+
     val painter = rememberAsyncImagePainter(
         ImageRequest.Builder(LocalContext.current)
             .data(
@@ -292,64 +289,32 @@ fun CoilImage(
             }).build()
     )
 
-    Box(
-        modifier = modifier
-    ) {
+    if (painter.state is AsyncImagePainter.State.Loading) {
         Image(
-            painter = painter,
+            //if painter is not loaded, show a gray box
+            painter = ColorPainter(MaterialTheme.colorScheme.secondary),
             contentDescription = null,
             contentScale = contentScale,
             modifier = Modifier.fillMaxSize()
         )
 
-        if (circularRevealedEnabled) {
-            CircularReveal(
-                isContentVisible = painter.state is AsyncImagePainter.State.Success,
-                duration = circularRevealedDuration,
-                color = circularRevealedColor
-            )
-        }
-
-        if (painter.state is AsyncImagePainter.State.Error && error != null) {
-            error(painter.state as AsyncImagePainter.State.Error)
-        }
-    }
-}
-
-@Composable
-fun CircularReveal(
-    isContentVisible: Boolean,
-    duration: Int,
-    color: Color
-) {
-    val infiniteTransition = rememberInfiniteTransition()
-
-    val startSize by infiniteTransition.animateFloat(
-        initialValue = if (isContentVisible) 0f else 1f,
-        targetValue = if (isContentVisible) 1f else 0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = duration),
-            repeatMode = RepeatMode.Restart
+        CircularProgressIndicator(
+            modifier = Modifier
+                .fillMaxSize()
+                .wrapContentSize(Alignment.Center)
+                .size(48.dp),
+            color = MaterialTheme.colorScheme.onSecondary
         )
-    )
-
-    if (isContentVisible) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Canvas(modifier = Modifier.size(startSize.dp)) {
-                drawCircle(
-                    color = color,
-                    radius = size.minDimension / 2
-                )
-            }
-        }
     }
+
+
+    Image(
+        painter = painter,
+        contentDescription = null,
+        contentScale = contentScale,
+        modifier = Modifier
+            .fillMaxSize(),
+
+    )
 }
 
-enum class ImageLoadState {
-    Loading,
-    Success,
-    Error
-}
