@@ -1,12 +1,17 @@
 package com.example.cocktails_app.ui.screens
 
 import android.util.Log
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.R
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.ZeroCornerSize
 import androidx.compose.foundation.text.selection.LocalTextSelectionColors
 import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.material.icons.Icons
@@ -25,9 +30,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -35,6 +42,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.cocktails_app.viewmodel.CocktailViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
 import coil.request.CachePolicy
 import coil.request.ImageRequest
@@ -75,7 +83,9 @@ fun CocktailList(
 ) {
     when (cocktailList) {
         is Resource.Success -> {
-            LazyColumn(
+
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(top = 16.dp, start = 16.dp, end = 16.dp)
@@ -83,7 +93,7 @@ fun CocktailList(
                 items(cocktailList.data?.drinks?.size ?: 0) { index ->
                     val drink = cocktailList.data?.drinks?.get(index)
                     if (drink != null) {
-                        CocktailItem(
+                        CocktailTile(
                             drink = drink,
                             navController = navController,
                             viewModel = viewModel
@@ -125,7 +135,7 @@ fun CocktailList(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CocktailItem(
+fun CocktailTile(
     drink: Drink,
     navController: NavController,
     viewModel: CocktailViewModel
@@ -133,37 +143,45 @@ fun CocktailItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 16.dp),
-
+            .aspectRatio(1f)
+            .padding(8.dp),
         colors = CardDefaults.cardColors(
-            containerColor  = MaterialTheme.colorScheme.secondary,
+            containerColor = MaterialTheme.colorScheme.secondary,
             contentColor = MaterialTheme.colorScheme.onSecondary,
         ),
-
         onClick = {
             viewModel.searchCocktailById(drink.id)
             navController.navigate("detail_cocktail")
         }
     ) {
-        Row(
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+                .fillMaxSize()
         ) {
+            CoilImage(
+                data = drink.thumbnail,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RectangleShape),
+            )
             Text(
                 text = drink.name,
                 color = Color.White,
-                fontSize = 18.sp
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(8.dp)
+                    .background(
+                        color = Color.Black.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(8.dp)
+                    ).padding(8.dp)
             )
-
-            drink.thumbnail?.let {
-                CocktailDrinkImage(
-                    imageString = it
-                )
-            }
         }
     }
 }
+
 
 @OptIn(ExperimentalComposeUiApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -184,12 +202,10 @@ fun SearchView(
             value = searchQueryState.value,
             onValueChange = { value ->
                 searchQueryState.value = value
-
                 viewModel.searchCocktailByName(value.text)
             },
             modifier = Modifier
                 .fillMaxWidth()
-//                .background(Color(0xFFFF0000))
                 .statusBarsPadding(),
             textStyle = TextStyle(color = Color.White, fontSize = 18.sp),
             leadingIcon = {
@@ -239,9 +255,6 @@ fun SearchView(
                 cursorColor = Color.White,
                 placeholderColor = Color.White,
                 containerColor = Color.Transparent,
-//                leadingIconColor = Color.White,
-//                trailingIconColor = Color.White,
-//                backgroundColor = Color.Transparent,
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
                 disabledIndicatorColor = Color.Transparent,
@@ -260,26 +273,83 @@ fun SearchView(
     )
 }
 
-
-
 @Composable
-fun CocktailDrinkImage(imageString: String) {
+fun CoilImage(
+    data: Any?,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Crop,
+    circularRevealedEnabled: Boolean = false,
+    circularRevealedDuration: Int = 1000,
+    circularRevealedColor: Color = Color.LightGray,
+    error: @Composable ((Throwable) -> Unit)? = null
+) {
     val painter = rememberAsyncImagePainter(
         ImageRequest.Builder(LocalContext.current)
             .data(
-                imageString
-            )
-            .apply(block = fun ImageRequest.Builder.() {
+                data = data
+            ).apply(block = fun ImageRequest.Builder.() {
                 memoryCachePolicy(CachePolicy.ENABLED)
             }).build()
     )
-    Image(
-        painter = painter,
-        contentDescription = "Cocktail Drink Image",
-        modifier = Modifier
-                //make image round
-            .clip(CircleShape)
-            .size(48.dp),
-        alignment = Alignment.Center,
+
+    Box(
+        modifier = modifier
+    ) {
+        Image(
+            painter = painter,
+            contentDescription = null,
+            contentScale = contentScale,
+            modifier = Modifier.fillMaxSize()
+        )
+
+        if (circularRevealedEnabled) {
+            CircularReveal(
+                isContentVisible = painter.state is AsyncImagePainter.State.Success,
+                duration = circularRevealedDuration,
+                color = circularRevealedColor
+            )
+        }
+
+        if (painter.state is AsyncImagePainter.State.Error && error != null) {
+            error(painter.state as AsyncImagePainter.State.Error)
+        }
+    }
+}
+
+@Composable
+fun CircularReveal(
+    isContentVisible: Boolean,
+    duration: Int,
+    color: Color
+) {
+    val infiniteTransition = rememberInfiniteTransition()
+
+    val startSize by infiniteTransition.animateFloat(
+        initialValue = if (isContentVisible) 0f else 1f,
+        targetValue = if (isContentVisible) 1f else 0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = duration),
+            repeatMode = RepeatMode.Restart
+        )
     )
+
+    if (isContentVisible) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Canvas(modifier = Modifier.size(startSize.dp)) {
+                drawCircle(
+                    color = color,
+                    radius = size.minDimension / 2
+                )
+            }
+        }
+    }
+}
+
+enum class ImageLoadState {
+    Loading,
+    Success,
+    Error
 }
